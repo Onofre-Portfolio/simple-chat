@@ -1,9 +1,9 @@
 type execution_mode = Server | Client | Help
 
 let try_mode_of_string = function
-  | "--server" -> Some Server
-  | "--client" -> Some Client
-  | "--help" -> Some Help
+  | "server" | "--server" -> Some Server
+  | "client" | "--client" -> Some Client
+  | "help" | "--help" -> Some Help
   | _ -> None
 
 let print_help () =
