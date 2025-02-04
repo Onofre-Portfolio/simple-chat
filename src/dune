@@ -1,0 +1,3 @@
+(executable
+ (libraries)
+ (public_name chat))

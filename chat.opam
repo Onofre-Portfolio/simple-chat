@@ -1,0 +1,12 @@
+opam-version: "2.0"
+name: "chat"
+version: "0.0"
+license: "MIT"
+synopsis: "Ahrefs Chat App"
+maintainer: "Tiago Onofre <taraujonofre@gmail.com>"
+depends: [
+ "ocaml" {>= "5.3.0"}
+ "dune" {>= "3.7.1"}
+ "ocamlformat" 
+]
+build: ["dune" "build" "-p" name]
