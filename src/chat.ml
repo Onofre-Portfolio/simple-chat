@@ -1,4 +1,5 @@
 open Server
+open Client
 
 type execution_mode = Server | Client | Help
 
@@ -25,7 +26,7 @@ let main argv =
   | 2 -> (
       match argv.(1) |> mode_of_string_opt with
       | Some Server -> () |> start_server |> Lwt_main.run
-      | Some Client -> print_endline "Client mode"
+      | Some Client -> start_client "127.0.0.1" 8090 |> Lwt_main.run
       | Some Help -> print_help ()
       | None -> print_endline "Invalid execution mode." |> print_help)
   | inputs when inputs > 2 ->
