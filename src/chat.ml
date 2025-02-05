@@ -1,6 +1,8 @@
+open Server
+
 type execution_mode = Server | Client | Help
 
-let try_mode_of_string = function
+let mode_of_string_opt = function
   | "server" | "--server" -> Some Server
   | "client" | "--client" -> Some Client
   | "help" | "--help" -> Some Help
@@ -21,8 +23,8 @@ let print_help () =
 let main argv =
   match argv |> Array.length with
   | 2 -> (
-      match argv.(1) |> try_mode_of_string with
-      | Some Server -> print_endline "Server mode"
+      match argv.(1) |> mode_of_string_opt with
+      | Some Server -> () |> start_server |> Lwt_main.run
       | Some Client -> print_endline "Client mode"
       | Some Help -> print_help ()
       | None -> print_endline "Invalid execution mode." |> print_help)
