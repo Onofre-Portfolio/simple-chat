@@ -10,5 +10,6 @@ depends: [
  "ocamlformat" 
  "ocaml-lsp-server"
  "lwt"
+ "cmdliner"
 ]
 build: ["dune" "build" "-p" name]
