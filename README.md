@@ -5,7 +5,7 @@ I must develop a simple chat application with the following requirements:
 - [x] A client mode.
 - [x] A server mode.
 - [x] The server should wait for and listen to incoming connections.
-- [x] The client should accept the server's hostname to connect to.
+- [x] The client should take the server's hostname to connect to.
 - [x] After the connection is established, both parties should be able to send messages.
 - [x] The server should continue listening for connections after one is closed.
 - [x] The acknowledgment message should be `Message received`.
