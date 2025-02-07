@@ -1,18 +1,30 @@
-type side = Server_side | Client_side
+open Lwt_unix
+open Lwt_io
 
-val create : unit -> Lwt_unix.file_descr
-val bind : Unix.inet_addr -> int -> Lwt_unix.file_descr -> unit
-val listen : int -> Lwt_unix.file_descr -> unit
+val create : unit -> file_descr
+val bind : Unix.inet_addr -> int -> file_descr -> unit Lwt.t
+val listen : int -> file_descr -> unit
+val peername : file_descr -> string
 
 module Protocol : sig
-  val recv_handler :
-    side -> Lwt_io.input_channel -> Lwt_io.output_channel -> unit -> unit Lwt.t
+  type side = Server_side | Client_side
 
-  val send_handler :
-    side ->
-    Lwt_unix.file_descr ->
-    Lwt_io.input_channel ->
-    Lwt_io.output_channel ->
-    unit ->
-    unit Lwt.t
+  module Context : sig
+    type t = {
+      socket : file_descr;
+      side : side;
+      in_channel : input_channel;
+      out_channel : output_channel;
+    }
+
+    val make :
+      socket:file_descr ->
+      side:side ->
+      in_channel:input_channel ->
+      out_channel:output_channel ->
+      t
+  end
+
+  val recv_handler : Context.t -> unit -> unit Lwt.t
+  val send_handler : Context.t -> unit -> unit Lwt.t
 end
