@@ -14,37 +14,67 @@ I must develop a simple chat application with the following requirements:
 - [ ] The wire protocol should not make any assumptions about the message contents (e.g., allowed byte values, character encoding, etc.).
 
 
-## Usage
+## Installing and Building
 
 ### Install the dependencies:
 ```bash
-opam install --deps-only .
+$ opam install --deps-only .
 
 # In some cases, you'll need to run:
-opam update && opam upgrade
+$ opam update && opam upgrade
 ```
 
 ### Build and Exec
 ```bash
 # Build
-dune build
+$ dune build
 
 # Run through dune
-dune exec chat
+$ dune exec chat
 
 # Or with the binary
-./_build/default/src/chat.exe
+$ ./_build/default/src/chat.exe
 ```
 
+## Usage
 ### Execution Modes 
 
 #### Server side 
 ```bash
-dune exec chat -- --server
+$ dune exec chat -- server
+```
+Expected output:
+
+```bash
+Starting server...
+Listening on 127.0.0.1:8090.
 ```
 
 #### Client side 
 ```bash
-dune exec chat -- --client <hostname>
-# The expected hostname has the following format: 127.0.0.1:<port_number>
+$ dune exec chat -- client --hostname <hostname> --port <port_number>
 ```
+Expected output (if there is a server running and you passed the correct hostname + port number):
+
+```bash
+$ dune exec chat -- client --hostname localhost --port 8090
+Connected to 127.0.0.1:8090
+```
+
+#### Guide
+* The `hostname` is expected to be a ip value such as `127.0.0.1` or a host like `localhost`.
+* Any `host` added to `/etc/hosts` should work fine.
+* In case of the host isnt on `/etc/hosts` or an invalid ip, this should be the expected behaviour:
+```bash
+chat: option '--hostname': Invalid hostname.
+Usage: chat client [--hostname=<HOSTNAME>] [--port=<PORT_NUMBER>] [OPTION]…
+Try 'chat client --help' or 'chat --help' for more information.
+```
+* Something similar goes to the port number:
+```bash
+$ dune exec chat -- client --hostname localhost --port notanumber
+chat: option '--port': Unable to parse the port number.
+Usage: chat client [--hostname=<HOSTNAME>] [--port=<PORT_NUMBER>] [OPTION]…
+Try 'chat client --help' or 'chat --help' for more information.
+```
+
