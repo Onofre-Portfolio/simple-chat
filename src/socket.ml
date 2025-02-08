@@ -30,7 +30,7 @@ module Protocol = struct
   end
 
   let acknowledge = "Message received"
-  let cancel_signal, cancel_wakener = Lwt.wait ()
+  let cancel_signal, cancel_wakeup = Lwt.wait ()
 
   let rec recv_handler context () =
     let open Context in
@@ -74,7 +74,7 @@ module Protocol = struct
               | Some input ->
                   if String.equal input "]" && is_client context.side then (
                     let* () = print "Closing connection...\n" in
-                    Lwt.wakeup cancel_wakener ();
+                    wakeup cancel_wakeup ();
                     Lwt_unix.close context.socket)
                   else
                     let rtt_start = Unix.gettimeofday () in
@@ -82,7 +82,7 @@ module Protocol = struct
                     let* ack = read_line context.in_channel in
                     let rtt_end = Unix.gettimeofday () in
                     let rtt = rtt_end -. rtt_start in
-                    printf "Ack: %s | Round-Trip Time: %fs\n" ack rtt
+                    printf "Ack: %s | Roundtrip Time: %fs\n" ack rtt
                     >>= send_handler context
               | None -> send_handler context () );
             cancel_signal;
