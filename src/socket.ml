@@ -18,19 +18,38 @@ module Protocol = struct
   type side = Server_side | Client_side
 
   module Context = struct
-    type t = {
-      socket : file_descr;
-      side : side;
-      in_channel : input_channel;
-      out_channel : output_channel;
-    }
+    type t = { socket : file_descr; side : side }
 
-    let make ~socket ~side ~in_channel ~out_channel =
-      { socket; side; in_channel; out_channel }
+    let make ~socket ~side = { socket; side }
   end
 
   let acknowledge = "Message received"
+  let msg_flags = []
   let cancel_signal, cancel_wakeup = Lwt.wait ()
+
+  let rec read_exactly socket buffer offset remaining =
+    if remaining = 0 then return ()
+    else
+      let* bytes_read =
+        Lwt_unix.recv socket buffer offset remaining msg_flags
+      in
+      read_exactly socket buffer (offset + bytes_read) (remaining - bytes_read)
+
+  let rec send_exactly socket buffer offset remaining =
+    if remaining = 0 then return ()
+    else
+      let* bytes_sent =
+        Lwt_unix.send socket buffer offset remaining msg_flags
+      in
+      send_exactly socket buffer (offset + bytes_sent) (remaining - bytes_sent)
+
+  let recv_opt socket =
+    let len_buf = Bytes.create 4 in
+    let* () = read_exactly socket len_buf 0 4 in
+    let len = Bytes.get_int32_be len_buf 0 |> Int32.to_int in
+    let msg_buf = Bytes.create len in
+    let* () = read_exactly socket msg_buf 0 len in
+    Some (Bytes.to_string msg_buf) |> return
 
   let rec recv_handler context () =
     let open Context in
@@ -38,7 +57,7 @@ module Protocol = struct
     | Opened ->
         Lwt.pick
           [
-            ( read_line_opt context.in_channel >>= fun message_opt ->
+            ( recv_opt context.socket >>= fun message_opt ->
               match message_opt with
               | Some message ->
                   (if not (String.equal message acknowledge) then
@@ -49,15 +68,16 @@ module Protocol = struct
                      in
                      printf "From %s: %s\n" from message |> ignore);
 
-                  write_line context.out_channel acknowledge
+                  let msg_len = String.length acknowledge in
+                  let msg_buf = Bytes.create (4 + msg_len) in
+                  Bytes.set_int32_be msg_buf 0 (Int32.of_int msg_len);
+                  Bytes.blit_string acknowledge 0 msg_buf 4 msg_len;
+                  send_exactly context.socket msg_buf 0 (4 + msg_len)
                   >>= recv_handler context
-              | None -> (
-                  match context.side with
-                  | Server_side -> print "Connection closed.\n" >>= return
-                  | Client_side -> recv_handler context ()) );
+              | None -> print "Connection closed.\n" >>= return );
             cancel_signal;
           ]
-    | Closed -> return ()
+    | Closed -> print "Connection closed.\n" >>= return
     | Aborted exn ->
         exn |> Printexc.to_string |> printf "Connection aborted with error: %s"
 
@@ -71,19 +91,30 @@ module Protocol = struct
           [
             ( read_line_opt stdin >>= fun message_opt ->
               match message_opt with
-              | Some input ->
+              | Some input -> (
                   if String.equal input "]" && is_client context.side then (
                     let* () = print "Closing connection...\n" in
                     wakeup cancel_wakeup ();
                     Lwt_unix.close context.socket)
                   else
+                    let msg_len = String.length input in
+                    let msg_buf = Bytes.create (4 + msg_len) in
+                    Bytes.set_int32_be msg_buf 0 (Int32.of_int msg_len);
+                    Bytes.blit_string input 0 msg_buf 4 msg_len;
                     let rtt_start = Unix.gettimeofday () in
-                    let* () = write_line context.out_channel input in
-                    let* ack = read_line context.in_channel in
-                    let rtt_end = Unix.gettimeofday () in
-                    let rtt = rtt_end -. rtt_start in
-                    printf "Ack: %s | Roundtrip Time: %fs\n" ack rtt
-                    >>= send_handler context
+                    let* () =
+                      send_exactly context.socket msg_buf 0 (4 + msg_len)
+                    in
+                    let* ack_opt = recv_opt context.socket in
+                    match ack_opt with
+                    | Some ack ->
+                        let rtt_end = Unix.gettimeofday () in
+                        let rtt = rtt_end -. rtt_start in
+                        printf "Ack: %s | Roundtrip Time: %fs\n" ack rtt
+                        >>= send_handler context
+                    | None ->
+                        print "Acknowledgement not received.\n"
+                        >>= send_handler context)
               | None -> send_handler context () );
             cancel_signal;
           ]

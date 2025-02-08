@@ -12,12 +12,7 @@ let active_connection = ref (Unix.stdin |> of_unix_file_descr)
 let start_connection connection =
   let socket, _sockaddr = connection in
   active_connection := socket;
-  let in_channel = of_fd ~mode:Input socket in
-  let out_channel = of_fd ~mode:Output socket in
-  let context =
-    Protocol.Context.make ~socket ~side:Protocol.Server_side ~in_channel
-      ~out_channel
-  in
+  let context = Protocol.Context.make ~socket ~side:Protocol.Server_side in
   Lwt.on_failure
     (Lwt.join
        [ Protocol.recv_handler context (); Protocol.send_handler context () ])
