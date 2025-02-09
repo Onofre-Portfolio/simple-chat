@@ -78,3 +78,9 @@ Usage: chat client [--hostname=<HOSTNAME>] [--port=<PORT_NUMBER>] [OPTION]…
 Try 'chat client --help' or 'chat --help' for more information.
 ```
 
+## References 
+- [Ocsigen Lwt](https://ocsigen.org/lwt/latest/manual/manual)
+- [OCaml Unix Module](https://ocaml.org/manual/5.3/api/Unix.html)
+- [OCaml Bytes Module](https://ocaml.org/manual/5.1/api/Bytes.html)
+- [Cmdliner](https://github.com/dbuenzli/cmdliner)
+- [Cmdliner Tutorial](https://erratique.ch/software/cmdliner/doc/tutorial.html)
