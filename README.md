@@ -11,7 +11,7 @@ I must develop a simple chat application with the following requirements:
 - [x] The acknowledgment message should be `Message received`.
 - [x] The receiving side should always return the acknowledgment message.
 - [x] The sending side should always calculate the round-trip time for the acknowledgment message.
-- [ ] The wire protocol should not make any assumptions about the message contents (e.g., allowed byte values, character encoding, etc.).
+- [x] The wire protocol should not make any assumptions about the message contents (e.g., allowed byte values, character encoding, etc.).
 
 
 ## Installing and Building
