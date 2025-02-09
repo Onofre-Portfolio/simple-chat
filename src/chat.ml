@@ -2,7 +2,6 @@ open Server
 open Client
 open Cmdliner
 
-(* Auxiliary functions *)
 let is_valid_inet_addr input : bool * string =
   try
     let host_entry = Unix.gethostbyname input in
@@ -17,7 +16,6 @@ let is_valid_port input =
     (true, port)
   with _ -> (false, 0)
 
-(* Command line function *)
 let server_cmd =
   let doc = "Run as a server side." in
   let workflow = fun () -> () |> start_server |> Lwt_main.run in
@@ -34,7 +32,7 @@ let client_cmd =
     Arg.conv (parse, Format.pp_print_string)
   in
   let hostname_arg =
-    let doc = "Server hostname required for establish a connection." in
+    let doc = "Server address required for establish a connection." in
     Arg.(
       required
       & opt (some hostname_conv) None
@@ -49,7 +47,7 @@ let client_cmd =
     Arg.conv (parse, Format.pp_print_int)
   in
   let port_number_arg =
-    let doc = "Port number where the server is listening." in
+    let doc = "Server port number." in
     Arg.(
       required
       & opt (some port_number_conv) None

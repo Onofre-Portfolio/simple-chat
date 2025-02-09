@@ -32,11 +32,6 @@ let start_client address port =
   if is_connected then
     let peername = Socket.peername socket in
     let* () = printf "Connected to %s\n" peername in
-    let in_channel = of_fd ~mode:Input socket in
-    let out_channel = of_fd ~mode:Output socket in
-    let context =
-      Protocol.Context.make ~socket ~side:Protocol.Client_side ~in_channel
-        ~out_channel
-    in
+    let context = Protocol.Context.make ~socket ~side:Protocol.Client_side in
     join [ Protocol.send_handler context (); Protocol.recv_handler context () ]
   else return ()

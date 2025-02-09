@@ -18,19 +18,78 @@ module Protocol = struct
   type side = Server_side | Client_side
 
   module Context = struct
-    type t = {
-      socket : file_descr;
-      side : side;
-      in_channel : input_channel;
-      out_channel : output_channel;
-    }
+    type t = { socket : file_descr; side : side }
 
-    let make ~socket ~side ~in_channel ~out_channel =
-      { socket; side; in_channel; out_channel }
+    let make ~socket ~side = { socket; side }
   end
 
   let acknowledge = "Message received"
+  let msg_flags = []
   let cancel_signal, cancel_wakeup = Lwt.wait ()
+
+  let buffer_of_string msg =
+    let len = String.length msg in
+    let buffer = Bytes.create (4 + len) in
+    Bytes.set_int32_be buffer 0 (Int32.of_int len);
+    Bytes.blit_string msg 0 buffer 4 len;
+    (len, buffer)
+
+  let rec send_all socket buffer offset remaining =
+    if remaining = 0 then return ()
+    else
+      let* bytes_sent =
+        Lwt_unix.send socket buffer offset remaining msg_flags
+      in
+      send_all socket buffer (offset + bytes_sent) (remaining - bytes_sent)
+
+  let rec read_all socket buffer offset remaining =
+    if remaining = 0 then return ()
+    else
+      let* bytes_read =
+        Lwt_unix.recv socket buffer offset remaining msg_flags
+      in
+      if bytes_read = 0 && remaining <> 0 then Lwt.fail End_of_file
+      else read_all socket buffer (offset + bytes_read) (remaining - bytes_read)
+
+  let send_all_opt socket buffer offset remaining =
+    catch
+      (fun () ->
+        send_all socket buffer offset remaining >>= fun _ -> return (Some ()))
+      (fun exn ->
+        let msg =
+          match exn with
+          | Canceled -> ""
+          | _ ->
+              exn |> Printexc.to_string |> Printf.sprintf "Unexpected error: %s"
+        in
+        printf "%s\n" msg >>= fun () -> return None)
+
+  let read_all_opt socket =
+    catch
+      (fun () ->
+        let len_buf = Bytes.create 4 in
+        let* _ = read_all socket len_buf 0 4 in
+        let len = Bytes.get_int32_be len_buf 0 |> Int32.to_int in
+        let msg_buf = Bytes.create len in
+        let* _ = read_all socket msg_buf 0 len in
+        Some (Bytes.to_string msg_buf) |> return)
+      (fun exn ->
+        let msg =
+          match exn with
+          | Unix.Unix_error (Unix.ECONNRESET, _, _) | End_of_file ->
+              Printf.sprintf "Connection closed with %s" (peername socket)
+          | Canceled -> ""
+          | _ ->
+              exn |> Printexc.to_string |> Printf.sprintf "Unexpected error: %s"
+        in
+        printf "%s\n" msg >>= fun () -> return None)
+
+  let safe_shutdown socket =
+    catch
+      (fun () -> shutdown socket SHUTDOWN_SEND |> return)
+      (function
+        | Unix.Unix_error (Unix.ENOTCONN, _, _) -> return ()
+        | exn -> Lwt.fail exn)
 
   let rec recv_handler context () =
     let open Context in
@@ -38,9 +97,9 @@ module Protocol = struct
     | Opened ->
         Lwt.pick
           [
-            ( read_line_opt context.in_channel >>= fun message_opt ->
+            ( read_all_opt context.socket >>= fun message_opt ->
               match message_opt with
-              | Some message ->
+              | Some message -> (
                   (if not (String.equal message acknowledge) then
                      let from =
                        match context.side with
@@ -48,16 +107,19 @@ module Protocol = struct
                        | Client_side -> "server"
                      in
                      printf "From %s: %s\n" from message |> ignore);
-
-                  write_line context.out_channel acknowledge
-                  >>= recv_handler context
+                  let len, buffer = buffer_of_string acknowledge in
+                  send_all_opt context.socket buffer 0 (4 + len) >>= function
+                  | Some () -> recv_handler context ()
+                  | None -> return ())
               | None -> (
                   match context.side with
-                  | Server_side -> print "Connection closed.\n" >>= return
-                  | Client_side -> recv_handler context ()) );
+                  | Client_side ->
+                      wakeup cancel_wakeup ();
+                      Lwt_unix.close context.socket >>= return
+                  | Server_side -> Lwt_unix.close context.socket >>= return) );
             cancel_signal;
           ]
-    | Closed -> return ()
+    | Closed -> print "Connection closed.\n" >>= return
     | Aborted exn ->
         exn |> Printexc.to_string |> printf "Connection aborted with error: %s"
 
@@ -71,19 +133,30 @@ module Protocol = struct
           [
             ( read_line_opt stdin >>= fun message_opt ->
               match message_opt with
-              | Some input ->
-                  if String.equal input "]" && is_client context.side then (
-                    let* () = print "Closing connection...\n" in
-                    wakeup cancel_wakeup ();
-                    Lwt_unix.close context.socket)
-                  else
-                    let rtt_start = Unix.gettimeofday () in
-                    let* () = write_line context.out_channel input in
-                    let* ack = read_line context.in_channel in
-                    let rtt_end = Unix.gettimeofday () in
-                    let rtt = rtt_end -. rtt_start in
-                    printf "Ack: %s | Roundtrip Time: %fs\n" ack rtt
-                    >>= send_handler context
+              | Some input -> (
+                  match (input, is_client context.side) with
+                  | "]", true ->
+                      let* () = print "Closing connection...\n" in
+                      wakeup cancel_wakeup ();
+                      safe_shutdown context.socket >>= fun () ->
+                      Lwt_unix.close context.socket
+                  | _, _ -> (
+                      let len, buffer = buffer_of_string input in
+                      let rtt_start = Unix.gettimeofday () in
+                      send_all_opt context.socket buffer 0 (4 + len)
+                      >>= function
+                      | Some () -> (
+                          let* ack_opt = read_all_opt context.socket in
+                          match ack_opt with
+                          | Some ack ->
+                              let rtt_end = Unix.gettimeofday () in
+                              let rtt = rtt_end -. rtt_start in
+                              printf "Ack: %s | Roundtrip Time: %fs\n" ack rtt
+                              >>= send_handler context
+                          | None ->
+                              print "Acknowledgement not received! Try again.\n"
+                              >>= send_handler context)
+                      | None -> return ()))
               | None -> send_handler context () );
             cancel_signal;
           ]
