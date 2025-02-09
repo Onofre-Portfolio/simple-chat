@@ -9,7 +9,9 @@ depends: [
  "dune" {>= "3.7.1"}
  "ocamlformat" 
  "ocaml-lsp-server"
+ "alcotest"
  "lwt"
  "cmdliner"
+
 ]
 build: ["dune" "build" "-p" name]

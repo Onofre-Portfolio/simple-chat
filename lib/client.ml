@@ -1,5 +1,4 @@
 open Lwt
-open Lwt.Syntax
 open Lwt_unix
 open Lwt_io
 open Socket
@@ -7,7 +6,7 @@ open Socket
 let ensure_initial_connection socket sockaddr =
   catch
     (fun () ->
-      let* () = connect socket sockaddr in
+      connect socket sockaddr >>= fun () ->
       getpeername socket |> ignore;
       return true)
     (fun e ->
@@ -24,14 +23,15 @@ let ensure_initial_connection socket sockaddr =
       printf "%s\n" msg |> ignore;
       return false)
 
-let start_client address port =
+let start address port =
   let inet_addr = Unix.inet_addr_of_string address in
   let sockaddr = ADDR_INET (inet_addr, port) in
   let socket = create () in
-  let* is_connected = ensure_initial_connection socket sockaddr in
-  if is_connected then
-    let peername = Socket.peername socket in
-    let* () = printf "Connected to %s\n" peername in
-    let context = Protocol.Context.make ~socket ~side:Protocol.Client_side in
-    join [ Protocol.send_handler context (); Protocol.recv_handler context () ]
-  else return ()
+  ensure_initial_connection socket sockaddr >>= function
+  | true ->
+      let peername = Socket.peername socket in
+      printf "Connected to %s\n" peername >>= fun () ->
+      let context = Protocol.Context.make ~socket ~side:Protocol.Client_side in
+      join
+        [ Protocol.send_handler context (); Protocol.recv_handler context () ]
+  | false -> return ()

@@ -1,5 +1,4 @@
-open Server
-open Client
+open Simple_chat
 open Cmdliner
 
 let is_valid_inet_addr input : bool * string =
@@ -17,9 +16,24 @@ let is_valid_port input =
   with _ -> (false, 0)
 
 let server_cmd =
+  let port_number_conv =
+    let parse s =
+      let is_valid, port = is_valid_port s in
+      if is_valid then Ok port
+      else Error (`Msg "Unable to parse the port number.")
+    in
+    Arg.conv (parse, Format.pp_print_int)
+  in
+  let port_number_arg =
+    let doc = "Server port number." in
+    Arg.(
+      value
+      & opt (some port_number_conv) None
+      & info [ "p"; "port" ] ~docv:"<PORT_NUMBER>" ~doc)
+  in
   let doc = "Run as a server side." in
-  let workflow = fun () -> () |> start_server |> Lwt_main.run in
-  let term = Term.(const workflow $ const ()) in
+  let workflow = fun port_opt -> port_opt |> Server.start |> Lwt_main.run in
+  let term = Term.(const workflow $ port_number_arg) in
   let info = Cmd.info "server" ~doc in
   Cmd.v info term
 
@@ -54,7 +68,7 @@ let client_cmd =
       & info [ "p"; "port" ] ~docv:"<PORT_NUMBER>" ~doc)
   in
   let doc = "Run as a client side." in
-  let workflow hostname port = start_client hostname port |> Lwt_main.run in
+  let workflow hostname port = Client.start hostname port |> Lwt_main.run in
   let term = Term.(const workflow $ hostname_arg $ port_number_arg) in
   let info = Cmd.info "client" ~doc ~man:[] in
   Cmd.v info term

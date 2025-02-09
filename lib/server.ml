@@ -1,12 +1,11 @@
 open Lwt
-open Lwt.Syntax
 open Lwt_unix
 open Lwt_io
 open Socket
 
 let address = Unix.inet_addr_loopback
 let max_pending_requests = 10
-let port = 8091
+let default_port = 8090
 let active_connection = ref (Unix.stdin |> of_unix_file_descr)
 
 let start_connection connection =
@@ -17,32 +16,32 @@ let start_connection connection =
     (join
        [ Protocol.recv_handler context (); Protocol.send_handler context () ])
     (fun err -> Printf.printf "Unexpected error: %s\n" (Printexc.to_string err));
-  printf "New connection with %s.\n" (peername socket) >>= return
+  printf "New connection with %s.\n" @@ peername socket >>= return
 
-let create_server_socket () =
+let create_server_socket port =
   let socket_ = Socket.create () in
-  let* () = Socket.bind address port socket_ in
+  Socket.bind address port socket_ >>= fun () ->
   Socket.listen max_pending_requests socket_;
   return socket_
 
-let shutdown_signal, shutdown_wakeup = Lwt.wait ()
+let shutdown_thread, shutdown_resolver = Lwt.wait ()
 
-let handle_signal signal =
-  print_endline "\nClosing connection...";
-  wakeup_later shutdown_wakeup signal;
-  Protocol.safe_shutdown !active_connection |> ignore;
-  Lwt_unix.close !active_connection |> ignore
+let handle_shutdown_signal signal =
+  print "\nClosing connection and shutting down the server...\n" |> ignore;
+  wakeup_later shutdown_resolver signal;
+  Protocol.safe_close !active_connection |> ignore
 
-let start_server () =
-  let _ = on_signal Sys.sigint handle_signal in
+let start port_opt =
+  let port = match port_opt with Some p -> p | None -> default_port in
+  let _ = on_signal Sys.sigint handle_shutdown_signal in
   catch
     (fun () ->
-      let* () = print "Starting server...\n" in
-      let* socket = create_server_socket () in
+      print "Starting server...\n" >>= fun () ->
+      create_server_socket port >>= fun socket ->
       let rec serve () = accept socket >>= start_connection >>= serve in
       printf "Listening on %s:%d.\n" (address |> Unix.string_of_inet_addr) port
       >>= fun () ->
-      Lwt.pick [ serve (); shutdown_signal ] >>= fun _ -> return ())
+      pick [ serve (); shutdown_thread ] >>= fun _ -> return ())
     (fun exn ->
       let msg =
         match exn with

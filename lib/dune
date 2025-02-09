@@ -1,0 +1,3 @@
+(library
+  (name simple_chat)
+  (libraries lwt lwt.unix unix))
