@@ -14,6 +14,7 @@ module Protocol : sig
     val make : socket:file_descr -> side:side -> t
   end
 
+  val safe_shutdown : file_descr -> unit Lwt.t
   val recv_handler : Context.t -> unit -> unit Lwt.t
   val send_handler : Context.t -> unit -> unit Lwt.t
 end
