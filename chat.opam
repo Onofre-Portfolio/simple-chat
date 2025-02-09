@@ -12,6 +12,5 @@ depends: [
  "alcotest"
  "lwt"
  "cmdliner"
-
 ]
 build: ["dune" "build" "-p" name]
