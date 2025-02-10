@@ -10,6 +10,7 @@ depends: [
  "ocamlformat" 
  "ocaml-lsp-server"
  "alcotest"
+ "alcotest-lwt"
  "lwt"
  "cmdliner"
 ]

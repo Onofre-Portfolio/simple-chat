@@ -1,4 +1,9 @@
-(executable 
-  (name main)
-  (public_name tests_suite)
-  (libraries alcotest))
+(executable
+ (name main)
+ (public_name tests_suite)
+ (libraries alcotest alcotest-lwt simple_chat))
+
+(rule
+ (alias runtest)
+ (action
+  (run tests_suite)))
