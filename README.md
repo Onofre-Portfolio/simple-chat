@@ -53,6 +53,8 @@ $ dune exec tests_suite
 #### Server side 
 ```bash
 $ dune exec chat -- server
+# or
+$ dune exec chat -- server --port <port_number>
 ```
 Expected output:
 
