@@ -13,6 +13,10 @@ I must develop a simple chat application with the following requirements:
 - [x] The sending side should always calculate the round-trip time for the acknowledgment message.
 - [x] The wire protocol should not make any assumptions about the message contents (e.g., allowed byte values, character encoding, etc.).
 
+Developed with:
+- Opam 2.3.0
+- Dune 3.17.2
+- OCaml 5.3.0
 
 ## Installing and Building
 
@@ -34,6 +38,13 @@ $ dune exec chat
 
 # Or with the binary
 $ ./_build/default/src/chat.exe
+```
+
+### Tests
+```bash
+$ dune runtest
+# or
+$ dune exec tests_suite
 ```
 
 ## Usage
@@ -62,9 +73,9 @@ Connected to 127.0.0.1:8090
 ```
 
 #### Guide
-* The `hostname` is expected to be a ip value such as `127.0.0.1` or a host like `localhost`.
+* The `hostname` is expected to be an ip value such as `127.0.0.1` or a host like `localhost`.
 * Any `host` added to `/etc/hosts` should work fine.
-* In case of the host isnt on `/etc/hosts` or an invalid ip, this should be the expected behaviour:
+* In case of the host isn't on `/etc/hosts` or an invalid ip, this should be the expected behaviour:
 ```bash
 chat: option '--hostname': Invalid hostname.
 Usage: chat client [--hostname=<HOSTNAME>] [--port=<PORT_NUMBER>] [OPTION]…
