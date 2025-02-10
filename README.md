@@ -111,6 +111,7 @@ Connection closed with 127.0.0.1:50210
 ```
 
 * If a connection exists between the server and the client and you cancel the server, the client will be shut down with the abruptly closed connection.
+
 Server side:
 ```bash
 $ dune exec chat -- server
