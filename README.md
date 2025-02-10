@@ -77,7 +77,7 @@ Connected to 127.0.0.1:8090
 #### Guide
 * The `hostname` is expected to be an IP value such as `127.0.0.1` or a host like `localhost`.
 * Any `host` added to `/etc/hosts` should work fine.
-* In case the host isn't on `/etc/hosts` or an invalid IP, this should be the expected behaviour:
+* In case the host isn't on `/etc/hosts` or it is an invalid IP, this should be the expected behaviour:
 ```bash
 chat: option '--hostname': Invalid hostname.
 Usage: chat client [--hostname=<HOSTNAME>] [--port=<PORT_NUMBER>] [OPTION]…
@@ -92,11 +92,22 @@ Try 'chat client --help' or 'chat --help' for more information.
 ```
 * If the port number isn't assigned at server mode, the default port will be 8090.
 * To close a connection on the client side, you can input the char `]` to end it.
+
+Client side:
 ```bash
-dune exec chat -- client --hostname localhost --port 8090
+$ dune exec chat -- client --hostname localhost --port 8090
 Connected to 127.0.0.1:8090
 ]
 Closing connection...
+```
+
+Server side:
+```bash
+dune exec chat -- server
+Starting server...
+Listening on 127.0.0.1:8090.
+New connection with 127.0.0.1:50210.
+Connection closed with 127.0.0.1:50210
 ```
 
 * If a connection exists between the server and the client and you cancel the server, the client will be shut down with the abruptly closed connection.
