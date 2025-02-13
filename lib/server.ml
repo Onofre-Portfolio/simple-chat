@@ -3,7 +3,7 @@ open Lwt_unix
 open Lwt_io
 open Socket
 
-let address = Unix.inet_addr_loopback
+let address = Unix.inet_addr_any
 let max_pending_requests = 10
 let default_port = 8090
 let active_connection = ref (Unix.stdin |> of_unix_file_descr)
