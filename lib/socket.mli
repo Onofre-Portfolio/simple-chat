@@ -13,7 +13,14 @@ module Context : sig
     cancel_resolver : unit Lwt.u;
   }
 
+  val is_connected : t -> bool
   val make : descriptor:Lwt_unix.file_descr -> side:side -> t
+end
+
+module Buffer : sig
+  type t = bytes
+
+  val of_string : string -> int * bytes
 end
 
 module Protocol : sig
