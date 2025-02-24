@@ -31,7 +31,7 @@ let start address port =
   | true ->
       let peername = Socket.peername socket in
       printf "Connected to %s\n" peername >>= fun () ->
-      let context = Protocol.Context.make ~socket ~side:Protocol.Client_side in
+      let context = Context.make ~descriptor:socket ~side:Client_side in
       join
         [ Protocol.send_handler context (); Protocol.recv_handler context () ]
   | false -> return ()

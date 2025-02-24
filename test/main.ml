@@ -67,7 +67,7 @@ let test_recv_handler_closed _switch () =
   let socket = Socket.create () in
   Lwt_unix.close socket >>= fun () ->
   let context =
-    Socket.Protocol.Context.make ~socket ~side:Socket.Protocol.Server_side
+    Socket.Context.make ~descriptor:socket ~side:Socket.Server_side
   in
   Socket.Protocol.recv_handler context () >>= return
 
@@ -75,7 +75,7 @@ let test_send_handler_closed _switch () =
   let socket = Socket.create () in
   Lwt_unix.close socket >>= fun () ->
   let context =
-    Socket.Protocol.Context.make ~socket ~side:Socket.Protocol.Client_side
+    Socket.Context.make ~descriptor:socket ~side:Socket.Client_side
   in
   Socket.Protocol.send_handler context () >>= return
 

@@ -9,14 +9,14 @@ let default_port = 8090
 let active_connection = ref (Unix.stdin |> of_unix_file_descr)
 
 let start_connection connection =
-  let socket, _sockaddr = connection in
-  active_connection := socket;
-  let context = Protocol.Context.make ~socket ~side:Protocol.Server_side in
+  let descriptor, _sockaddr = connection in
+  active_connection := descriptor;
+  let context = Context.make ~descriptor ~side:Server_side in
   on_failure
     (join
        [ Protocol.recv_handler context (); Protocol.send_handler context () ])
     (fun err -> Printf.printf "Unexpected error: %s\n" (Printexc.to_string err));
-  printf "New connection with %s.\n" @@ peername socket >>= return
+  printf "New connection with %s.\n" @@ peername descriptor >>= return
 
 let create_server_socket port =
   let socket_ = Socket.create () in
