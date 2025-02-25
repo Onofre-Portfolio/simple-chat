@@ -1,4 +1,4 @@
-Simple one-on-one chat with sockets
+# Simple one-on-one chat with sockets
 ## About 
 
 Requirements:
