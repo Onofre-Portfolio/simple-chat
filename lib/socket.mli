@@ -17,12 +17,6 @@ module Context : sig
   val make : descriptor:Lwt_unix.file_descr -> side:side -> t
 end
 
-module Buffer : sig
-  type t = bytes
-
-  val of_string : string -> int * bytes
-end
-
 module Protocol : sig
   val safe_close : Lwt_unix.file_descr -> unit Lwt.t
   val recv_handler : Context.t -> unit -> unit Lwt.t

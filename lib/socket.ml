@@ -33,37 +33,6 @@ module Context = struct
     with _ -> false
 end
 
-module Buffer = struct
-  type t = bytes
-
-  let prefix_length = 4
-  let msg_flags = []
-
-  let of_string message =
-    let message_length = String.length message in
-    let buffer = Bytes.create (prefix_length + message_length) in
-    Bytes.set_int32_be buffer 0 (Int32.of_int message_length);
-    Bytes.blit_string message 0 buffer prefix_length message_length;
-    (message_length, buffer)
-
-  let rec send_all socket buffer offset remaining =
-    let open Lwt in
-    if remaining = 0 then return ()
-    else
-      Lwt_unix.send socket buffer offset remaining msg_flags
-      >>= fun bytes_sent ->
-      send_all socket buffer (offset + bytes_sent) (remaining - bytes_sent)
-
-  let rec read_all socket buffer offset remaining =
-    let open Lwt in
-    if remaining = 0 then return ()
-    else
-      Lwt_unix.recv socket buffer offset remaining msg_flags
-      >>= fun bytes_read ->
-      if bytes_read = 0 && remaining <> 0 then fail End_of_file
-      else read_all socket buffer (offset + bytes_read) (remaining - bytes_read)
-end
-
 module Protocol = struct
   let acknowledge = "Message received"
 
@@ -83,12 +52,11 @@ module Protocol = struct
       (function
         | Unix.Unix_error (Unix.EBADF, _, _) -> return () | exn -> fail exn)
 
-  let send_all_opt socket buffer offset remaining =
+  let send socket buffer offset remaining =
     let open Lwt in
     catch
       (fun () ->
-        Buffer.send_all socket buffer offset remaining >>= fun _ ->
-        return (Some ()))
+        Buffer.send socket buffer offset remaining >>= fun _ -> return (Ok ()))
       (fun exn ->
         let msg =
           match exn with
@@ -97,18 +65,17 @@ module Protocol = struct
               exn |> Printexc.to_string
               |> Printf.sprintf "Unexpected error: %s\n"
         in
-        Lwt_io.print msg >>= fun () -> return None)
+        Lwt_io.print msg >>= fun () -> return (Error exn))
 
   let read_all_opt socket =
     let open Lwt in
+    let open Lwt.Syntax in
     catch
       (fun () ->
-        let len_buf = Bytes.create 4 in
-        Buffer.read_all socket len_buf 0 4 >>= fun _ ->
-        let len = Bytes.get_int32_be len_buf 0 |> Int32.to_int in
-        let msg_buf = Bytes.create len in
-        Buffer.read_all socket msg_buf 0 len >>= fun _ ->
-        Some (Bytes.to_string msg_buf) |> return)
+        let* len = Buffer.prefix socket in
+        let msg_buf = Buffer.init len in
+        Buffer.read socket msg_buf 0 len >>= fun _ ->
+        Some (Buffer.to_string msg_buf) |> return)
       (fun exn ->
         let msg =
           match exn with
@@ -127,9 +94,9 @@ module Protocol = struct
     pick
       [
         (let len, buffer = Buffer.of_string acknowledge in
-         send_all_opt socket buffer 0 (4 + len) >>= function
-         | Some () -> return true
-         | None -> return false);
+         send socket buffer 0 (4 + len) >>= function
+         | Ok () -> return true
+         | Error _ -> return false);
         ( Lwt_unix.timeout 5.0 >>= fun () ->
           Lwt_io.printf
             "Sending acknowledgement reached timeout! Closing connection.\n"
@@ -142,8 +109,8 @@ module Protocol = struct
       [
         (let len, buffer = Buffer.of_string message in
          let rtt_start = Unix.gettimeofday () in
-         send_all_opt socket buffer 0 (4 + len) >>= function
-         | Some () -> (
+         send socket buffer 0 (4 + len) >>= function
+         | Ok () -> (
              read_all_opt socket >>= fun ack_opt ->
              match ack_opt with
              | Some ack ->
@@ -154,7 +121,7 @@ module Protocol = struct
              | None ->
                  Lwt_io.print "Acknowledgement not received.\n" >>= fun () ->
                  return false)
-         | None -> return false);
+         | Error _ -> return false);
         ( Lwt_unix.timeout 5.0 >>= fun () ->
           Lwt_io.printf "Sending message reached timeout! Closing connection.\n"
           >>= fun () -> return false );
