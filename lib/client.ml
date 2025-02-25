@@ -1,13 +1,9 @@
-open Lwt
-open Lwt_unix
-open Lwt_io
-open Socket
-
 let ensure_initial_connection socket sockaddr =
+  let open Lwt in
   catch
     (fun () ->
-      connect socket sockaddr >>= fun () ->
-      getpeername socket |> ignore;
+      Lwt_unix.connect socket sockaddr >>= fun () ->
+      Lwt_unix.getpeername socket |> ignore;
       return true)
     (fun e ->
       let msg =
@@ -20,18 +16,22 @@ let ensure_initial_connection socket sockaddr =
             unix_error |> Printexc.to_string
             |> Printf.sprintf "Unexpected error: %s"
       in
-      printf "%s\n" msg |> ignore;
+      Lwt_io.printf "%s\n" msg |> ignore;
       return false)
 
 let start address port =
+  let open Lwt in
   let inet_addr = Unix.inet_addr_of_string address in
-  let sockaddr = ADDR_INET (inet_addr, port) in
-  let socket = create () in
+  let sockaddr = Lwt_unix.ADDR_INET (inet_addr, port) in
+  let socket = Socket.create () in
   ensure_initial_connection socket sockaddr >>= function
   | true ->
       let peername = Socket.peername socket in
-      printf "Connected to %s\n" peername >>= fun () ->
-      let context = Protocol.Context.make ~socket ~side:Protocol.Client_side in
+      Lwt_io.printf "Connected to %s\n" peername >>= fun () ->
+      let context = Socket.Context.make ~descriptor:socket ~side:Client_side in
       join
-        [ Protocol.send_handler context (); Protocol.recv_handler context () ]
+        [
+          Socket.Protocol.send_handler context ();
+          Socket.Protocol.recv_handler context ();
+        ]
   | false -> return ()
