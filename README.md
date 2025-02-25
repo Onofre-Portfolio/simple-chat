@@ -1,7 +1,7 @@
-# Test task for Ahrefs
+Simple one-on-one chat with sockets
 ## About 
 
-I must develop a simple chat application with the following requirements:
+Requirements:
 - [x] A client mode.
 - [x] A server mode.
 - [x] The server should wait for and listen to incoming connections.
